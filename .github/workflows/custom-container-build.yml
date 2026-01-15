@@ -7,12 +7,44 @@ on:
       - test-container-build
     types:
       - completed
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag to publish (e.g. manual or test)"
+        required: true
+        default: "manual"
 
 permissions:
   contents: read
   packages: write
 
 jobs:
+  build-manual:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push (manual)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          build-args: |
+            VITE_TALEMATE_BACKEND_WEBSOCKET_URL=${{ vars.VITE_TALEMATE_BACKEND_WEBSOCKET_URL }}
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ inputs.image_tag }}
+
   build-release:
     if: >-
       ${{ github.event.workflow_run.conclusion == 'success' &&
