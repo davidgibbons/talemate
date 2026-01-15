@@ -2,6 +2,20 @@
 
 Roleplay with AI with a focus on strong narration and consistent world and game state tracking.
 
+## Docker build (GitHub Actions env var)
+
+To customize the frontend WebSocket endpoint in the Docker image, set a repository-level Actions variable and let the existing build workflows pass it into the Docker build.
+
+Required GitHub changes:
+- Go to `Settings` → `Variables and secrets` → `Actions` → `Variables` and add:
+  - Name: `VITE_TALEMATE_BACKEND_WEBSOCKET_URL`
+  - Value: `wss://talemate-backend.pureroot.com/ws` (or your endpoint)
+- Ensure GitHub Actions is enabled for the repo (Settings → Actions → General).
+
+Build triggers:
+- Release builds: publish a GitHub Release to run `.github/workflows/ci.yml` and push `:latest` plus the release tag.
+- Test builds: push a branch named `prep-*` to run `.github/workflows/test-container-build.yml`.
+
 <div align="center">
 
 |<img src="docs/img/ss-1.png" width="400" height="250" alt="Screenshot 1">|<img src="docs/img/ss-2.png" width="400" height="250" alt="Screenshot 2">|

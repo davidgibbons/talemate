@@ -3,6 +3,10 @@ FROM node:21-slim AS frontend-build
 
 WORKDIR /app
 
+# Allow overriding the backend websocket URL at build time
+ARG VITE_TALEMATE_BACKEND_WEBSOCKET_URL
+ENV VITE_TALEMATE_BACKEND_WEBSOCKET_URL=$VITE_TALEMATE_BACKEND_WEBSOCKET_URL
+
 # Copy frontend package files
 COPY talemate_frontend/package*.json ./
 
