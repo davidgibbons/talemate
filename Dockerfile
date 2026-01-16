@@ -95,13 +95,10 @@ COPY config.example.yaml /app/config.yaml
 COPY scenes/ /app/scenes/
 COPY templates/ /app/templates/
 COPY chroma* /app/
-<<<<<<< HEAD
-=======
 
 # Copy entrypoint script for runtime environment variable substitution
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
->>>>>>> feature/runtime-websocket-config
 
 # Set PYTHONPATH to include the src directory
 ENV PYTHONPATH=/app/src:$PYTHONPATH
