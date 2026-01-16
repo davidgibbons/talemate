@@ -124,6 +124,7 @@ class General(pydantic.BaseModel):
     auto_progress: bool = True
     max_backscroll: int = 100
     add_default_character: bool = True
+    show_agent_activity_bar: bool = True
 
 
 class StateReinforcementTemplate(pydantic.BaseModel):
@@ -260,29 +261,6 @@ def generate_chromadb_presets() -> dict[str, EmbeddingFunctionPreset]:
             distance=1,
             local=False,
         ),
-        "hkunlp/instructor-xl": EmbeddingFunctionPreset(
-            embeddings="instructor",
-            model="hkunlp/instructor-xl",
-            distance=1,
-            local=True,
-            fast=False,
-            gpu_recommendation=True,
-        ),
-        "hkunlp/instructor-large": EmbeddingFunctionPreset(
-            embeddings="instructor",
-            model="hkunlp/instructor-large",
-            distance=1,
-            local=True,
-            fast=False,
-            gpu_recommendation=True,
-        ),
-        "hkunlp/instructor-base": EmbeddingFunctionPreset(
-            embeddings="instructor",
-            model="hkunlp/instructor-base",
-            distance=1,
-            local=True,
-            fast=True,
-        ),
     }
 
 
@@ -304,6 +282,8 @@ class InferenceParameters(pydantic.BaseModel):
     dry_base: float | None = 1.75
     dry_allowed_length: int | None = 2
     dry_sequence_breakers: str | None = '"\\n", ":", "\\"", "*"'
+    adaptive_target: float | None = -0.01
+    adaptive_decay: float | None = 0.9
 
     smoothing_factor: float | None = 0.0
     smoothing_curve: float | None = 1.0
@@ -509,14 +489,37 @@ class HidableHistoryMessageStyle(HistoryMessageStyle):
     show: bool = True
 
 
+class MarkupMessageStyle(HistoryMessageStyle):
+    # When False, use the underlying message default color instead of the markup color
+    override_color: bool = True
+
+
+class MessageAssetCadenceConfig(pydantic.BaseModel):
+    cadence: Literal["always", "never", "on_change"] = "always"
+    size: Literal["small", "medium", "big"] = "medium"
+
+
 class SceneAppearance(pydantic.BaseModel):
-    narrator_messages: HistoryMessageStyle = HistoryMessageStyle(italic=True)
-    character_messages: HistoryMessageStyle = HistoryMessageStyle()
+    narrator_messages: HistoryMessageStyle = HistoryMessageStyle()
+    actor_messages: HistoryMessageStyle = HistoryMessageStyle()
     director_messages: HidableHistoryMessageStyle = HidableHistoryMessageStyle()
     time_messages: HistoryMessageStyle = HistoryMessageStyle()
     context_investigation_messages: HidableHistoryMessageStyle = (
         HidableHistoryMessageStyle()
     )
+    quotes: MarkupMessageStyle = MarkupMessageStyle()
+    parentheses: MarkupMessageStyle = MarkupMessageStyle()
+    brackets: MarkupMessageStyle = MarkupMessageStyle()
+    emphasis: MarkupMessageStyle = MarkupMessageStyle()
+    message_assets: Dict[str, MessageAssetCadenceConfig] = pydantic.Field(
+        default_factory=lambda: {
+            "avatar": MessageAssetCadenceConfig(),
+            "card": MessageAssetCadenceConfig(),
+            "scene_illustration": MessageAssetCadenceConfig(),
+        }
+    )
+
+    auto_attach_assets: bool = True
 
 
 class Appearance(pydantic.BaseModel):
@@ -574,3 +577,5 @@ class SceneAssetUpload(pydantic.BaseModel):
     scene_cover_image: bool
     character_cover_image: str | None = None
     content: str = None
+    vis_type: str | None = None
+    character_name: str | None = None

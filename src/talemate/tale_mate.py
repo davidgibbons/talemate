@@ -138,6 +138,9 @@ class Scene(Emitter):
         self.character_data = {}
         self.active_characters = []
         self.layered_history = []
+        # When set, any active wait-for-input loop will raise RestartSceneLoop,
+        # allowing websocket-triggered environment switches to restart the scene loop.
+        self.restart_scene_loop_requested = False
         self.shared_context: SharedContext | None = None
         self.assets = SceneAssets(scene=self)
         self.voice_library: VoiceLibrary = VoiceLibrary()
@@ -193,6 +196,9 @@ class Scene(Emitter):
         self.active_pins = []
         # Add an attribute to store the most recent AI Actor
         self.most_recent_ai_actor = None
+
+        # List of game state paths to watch in debug tools
+        self.game_state_watch_paths: list[str] = []
 
         # if the user has requested to cancel the current action
         # or series of agent actions this will be true
@@ -1028,6 +1034,12 @@ class Scene(Emitter):
             elif partial and actor.character.name.lower() in character_name.lower():
                 return actor.character
 
+    def get_explicit_player_character(self) -> Character | None:
+        for actor in self.actors:
+            if isinstance(actor, Player):
+                return actor.character
+        return None
+
     def get_player_character(self):
         for actor in self.actors:
             if isinstance(actor, Player):
@@ -1421,6 +1433,7 @@ class Scene(Emitter):
                 "player_character_name": (
                     player_character.name if player_character else None
                 ),
+                "explicit_player_character": self.player_character_exists,
                 "inactive_characters": list(self.inactive_characters.keys()),
                 "context": self.context,
                 "assets": self.assets.dict(),
@@ -1457,6 +1470,7 @@ class Scene(Emitter):
                 "shared_context": self.shared_context.filename
                 if self.shared_context
                 else None,
+                "game_state_watch_paths": self.game_state_watch_paths,
             },
         )
 
@@ -1492,6 +1506,32 @@ class Scene(Emitter):
         )
 
         log.debug("emit_status", debounce_task=self._emit_status_debounce_task)
+
+    def emit_scene_intent(self):
+        """
+        Emit the current scene intent state to the UX.
+
+        Uses websocket passthrough so the websocket server doesn't need a
+        dedicated handler for this message type.
+        """
+        if not self.active:
+            return
+
+        try:
+            self.emit(
+                "scene_intent",
+                message="",
+                data=self.intent_state.model_dump(),
+                websocket_passthrough=True,
+                kwargs={
+                    "action": "updated",
+                    "scene_id": self.id,
+                    "scene_rev": self.rev,
+                },
+            )
+        except Exception as e:
+            # Best-effort; don't break scene flow due to websocket issues.
+            self.log.error("emit_scene_intent failed", error=e)
 
     def set_environment(self, environment: str):
         """
@@ -2117,6 +2157,7 @@ class Scene(Emitter):
             "shared_context": scene.shared_context.filename
             if scene.shared_context
             else None,
+            "game_state_watch_paths": scene.game_state_watch_paths,
         }
 
     @property
